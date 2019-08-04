@@ -416,11 +416,13 @@ ALTER TABLE public.layout_id_seq OWNER TO clyp;
 
 CREATE TABLE public.layout
 (
-  id bigint NOT NULL DEFAULT nextval('layout_id_seq'::regclass),,
+  id bigint NOT NULL DEFAULT nextval('layout_id_seq'::regclass),
   name character varying,
   is_active boolean,
   establishment_id bigint,
-  CONSTRAINT layout PRIMARY KEY (id),  
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT layout_pk PRIMARY KEY (id),  
   CONSTRAINT establishment_fk FOREIGN KEY (establishment_id)
       REFERENCES public.establishment(id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION  
@@ -428,5 +430,42 @@ CREATE TABLE public.layout
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE public.business_owner
+ALTER TABLE public.layout
   OWNER TO clyp;
+
+CREATE TABLE public.layout_audit
+(
+  action char(1),
+  id bigint NOT NULL,
+  name character varying,
+  is_active boolean,
+  establishment_id bigint,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.layout_audit
+  OWNER TO clyp;
+  
+CREATE OR REPLACE FUNCTION process_layout_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO layout_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO layout_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO layout_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER layout_audit AFTER INSERT OR UPDATE OR DELETE ON layout FOR EACH ROW EXECUTE PROCEDURE process_layout_audit();
+
+------------------------------------------------------------------------------
