@@ -1,7 +1,48 @@
 
+
+-- DROP DATABASE IF EXISTS clyp;
+-- DROP ROLE IF EXISTS clyp;
+
+-- CREATE ROLE clyp WITH
+--   NOLOGIN
+--   NOSUPERUSER
+--   INHERIT
+--   NOCREATEDB
+--   NOCREATEROLE
+--   NOREPLICATION;
+
+
+
+-- CREATE DATABASE clyp
+--     WITH 
+--     OWNER = clyp
+--     ENCODING = 'UTF8'
+--     LC_COLLATE = 'English_India.1252'
+--     LC_CTYPE = 'English_India.1252'
+--     TABLESPACE = pg_default
+--     CONNECTION LIMIT = -1;
+
 ------------------------------------------------------------------------------
 --Begin of Tables--
 ------------------------------------------------------------------------------
+DROP TABLE IF EXISTS public.business_owner_entity;  
+DROP TABLE IF EXISTS public.business_owner_entity_audit;
+
+DROP TABLE IF EXISTS public.staff;  
+DROP TABLE IF EXISTS public.staff_audit;
+
+DROP TABLE IF EXISTS public.session;  
+DROP TABLE IF EXISTS public.session_audit;
+
+DROP TABLE IF EXISTS public.dining_table;  
+DROP TABLE IF EXISTS public.dining_table_audit;
+
+DROP TABLE IF EXISTS public.establishment_layout;  
+DROP TABLE IF EXISTS public.establishment_layout_audit;
+
+DROP TABLE IF EXISTS public.establishment;  
+DROP TABLE IF EXISTS public.establishment_audit;
+
 
 DROP TABLE IF EXISTS public.role;  
 DROP SEQUENCE IF EXISTS public.role_id_seq;
@@ -218,8 +259,6 @@ CREATE TRIGGER entity_audit AFTER INSERT OR UPDATE OR DELETE ON entity FOR EACH 
 
 ------------------------------------------------------------------------------
 
-DROP TABLE IF EXISTS public.business_owner_entity;  
-DROP TABLE IF EXISTS public.business_owner_entity_audit;
   
 CREATE TABLE public.business_owner_entity
 (
@@ -273,10 +312,65 @@ $$ LANGUAGE plpgsql;
  
 CREATE TRIGGER business_owner_entity_audit AFTER INSERT OR UPDATE OR DELETE ON business_owner_entity 
 FOR EACH ROW EXECUTE PROCEDURE process_business_owner_entity_audit();
-  
+
 ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS public.establishment;  
-DROP TABLE IF EXISTS public.establishment_audit;
+DROP TABLE IF EXISTS public.layout;
+DROP TABLE IF EXISTS public.layout_audit;  
+DROP SEQUENCE IF EXISTS public.layout_id_seq;
+
+CREATE SEQUENCE public.layout_id_seq INCREMENT 1;
+ALTER TABLE public.layout_id_seq OWNER TO clyp;
+
+CREATE TABLE public.layout
+(
+  id bigint NOT NULL DEFAULT nextval('layout_id_seq'::regclass),
+  name character varying,
+  image bytea,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT layout_pk PRIMARY KEY (id)  
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.layout
+  OWNER TO clyp;
+
+CREATE TABLE public.layout_audit
+(
+  action char(1),
+  id bigint NOT NULL,
+  name character varying,
+  image bytea,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.layout_audit
+  OWNER TO clyp;
+  
+CREATE OR REPLACE FUNCTION process_layout_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO layout_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO layout_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO layout_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER layout_audit AFTER INSERT OR UPDATE OR DELETE ON layout FOR EACH ROW EXECUTE PROCEDURE process_layout_audit();
+
+------------------------------------------------------------------------------
 DROP SEQUENCE IF EXISTS public.establishment_id_seq;
 
 CREATE SEQUENCE public.establishment_id_seq INCREMENT 1;
@@ -291,7 +385,7 @@ CREATE TABLE public.establishment
   updated_at TIMESTAMPTZ,
   updated_by bigint,
   CONSTRAINT establishment_pk PRIMARY KEY (id),
-  CONSTRAINT entity_fk FOREIGN KEY (entity_id)
+  CONSTRAINT establishment_entity_fk FOREIGN KEY (entity_id)
       REFERENCES public.entity (id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION
 )
@@ -339,10 +433,63 @@ FOR EACH ROW EXECUTE PROCEDURE process_establishment_audit();
 
 ------------------------------------------------------------------------------
 
-DROP TABLE IF EXISTS public.staff;
-DROP TABLE IF EXISTS public.staff_audit;  
-DROP SEQUENCE IF EXISTS public.staff_id_seq;
+CREATE TABLE public.establishment_layout
+(
+  layout_id bigint,
+  establishment_id bigint,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT establishment_layout_establishment_fk FOREIGN KEY (establishment_id)
+      REFERENCES public.establishment (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT establishment_layout_layout_fk FOREIGN KEY (layout_id)
+      REFERENCES public.layout(id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.establishment_layout
+  OWNER TO clyp;
+  
+CREATE TABLE public.establishment_layout_audit
+(
+  action char(1),
+  layout_id bigint,
+  establishment_id bigint,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+)
+WITH (
+  OIDS=FALSE
+);
 
+ALTER TABLE public.establishment_layout_audit
+  OWNER TO clyp;
+
+CREATE OR REPLACE FUNCTION process_establishment_layout_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO establishment_layout_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO establishment_layout_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO establishment_layout_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER establishment_layout_audit AFTER INSERT OR UPDATE OR DELETE ON establishment_layout 
+FOR EACH ROW EXECUTE PROCEDURE process_establishment_layout_audit();
+
+------------------------------------------------------------------------------
+
+DROP SEQUENCE IF EXISTS public.staff_id_seq;
 CREATE SEQUENCE public.staff_id_seq INCREMENT 1;
 ALTER TABLE public.staff_id_seq OWNER TO clyp;
 
@@ -371,6 +518,7 @@ ALTER TABLE public.staff
 
 CREATE TABLE public.staff_audit
 (
+  action char(1),
   id bigint NOT NULL,
   username character varying,
   passhash character varying,
@@ -407,65 +555,210 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER staff_audit AFTER INSERT OR UPDATE OR DELETE ON staff FOR EACH ROW EXECUTE PROCEDURE process_staff_audit();
   
 ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS public.layout;
-DROP TABLE IF EXISTS public.layout_audit;  
-DROP SEQUENCE IF EXISTS public.layout_id_seq;
+DROP SEQUENCE IF EXISTS public.dining_table_id_seq;
 
-CREATE SEQUENCE public.layout_id_seq INCREMENT 1;
-ALTER TABLE public.layout_id_seq OWNER TO clyp;
+CREATE SEQUENCE public.dining_table_id_seq INCREMENT 1;
+ALTER TABLE public.dining_table_id_seq OWNER TO clyp;
 
-CREATE TABLE public.layout
+CREATE TABLE public.dining_table
 (
-  id bigint NOT NULL DEFAULT nextval('layout_id_seq'::regclass),
-  name character varying,
-  is_active boolean,
-  establishment_id bigint,
+  id bigint NOT NULL DEFAULT nextval('dining_table_id_seq'::regclass),
+  type character varying,
+  x int,
+  y int,
+  width int,
+  height int,
+  radius int,
+  s_angle real,
+  e_angle real,
+  layout_id int,
   updated_at TIMESTAMPTZ,
   updated_by bigint,
-  CONSTRAINT layout_pk PRIMARY KEY (id),  
-  CONSTRAINT establishment_fk FOREIGN KEY (establishment_id)
-      REFERENCES public.establishment(id) MATCH SIMPLE
-      ON UPDATE NO ACTION ON DELETE NO ACTION  
+  CONSTRAINT dining_table_pk PRIMARY KEY (id),
+  CONSTRAINT dining_table_layout_fk FOREIGN KEY (layout_id)
+      REFERENCES public.layout (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
 )
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE public.layout
+ALTER TABLE public.dining_table
   OWNER TO clyp;
 
-CREATE TABLE public.layout_audit
+
+CREATE TABLE public.dining_table_audit
 (
   action char(1),
   id bigint NOT NULL,
-  name character varying,
-  is_active boolean,
-  establishment_id bigint,
+  type character varying,
+  x int,
+  y int,
+  width int,
+  height int,
+  radius int,
+  s_angle real,
+  e_angle real,
+  layout_id int,
   updated_at TIMESTAMPTZ,
   updated_by bigint
 )
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE public.layout_audit
+ALTER TABLE public.dining_table_audit
   OWNER TO clyp;
   
-CREATE OR REPLACE FUNCTION process_layout_audit()
+CREATE OR REPLACE FUNCTION process_dining_table_audit()
 RETURNS TRIGGER AS $$
 BEGIN
    IF (TG_OP = 'DELETE') THEN
-      INSERT INTO layout_audit SELECT 'D', OLD.*;
+      INSERT INTO dining_table_audit SELECT 'D', OLD.*;
       RETURN OLD;
    ELSIF (TG_OP = 'UPDATE') THEN
-      INSERT INTO layout_audit SELECT 'U', NEW.*;
+      INSERT INTO dining_table_audit SELECT 'U', NEW.*;
       RETURN NEW;
    ELSIF (TG_OP = 'INSERT') THEN
-      INSERT INTO layout_audit SELECT 'I', NEW.*;
+      INSERT INTO dining_table_audit SELECT 'I', NEW.*;
       RETURN NEW;
    END IF;
 RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
  
-CREATE TRIGGER layout_audit AFTER INSERT OR UPDATE OR DELETE ON layout FOR EACH ROW EXECUTE PROCEDURE process_layout_audit();
+CREATE TRIGGER dining_table_audit AFTER INSERT OR UPDATE OR DELETE ON dining_table FOR EACH ROW EXECUTE PROCEDURE process_dining_table_audit();
+
+------------------------------------------------------------------------------
+DROP TABLE IF EXISTS public.customer;
+DROP TABLE IF EXISTS public.customer_audit;
+
+DROP SEQUENCE IF EXISTS public.customer_id_seq;
+CREATE SEQUENCE public.customer_id_seq INCREMENT 1;
+ALTER TABLE public.customer_id_seq OWNER TO clyp;
+
+CREATE TABLE public.customer
+(
+  id bigint NOT NULL DEFAULT nextval('customer_id_seq'::regclass),
+  username character varying,
+  mobile_no int,
+  email character varying,
+  passhash character varying,
+  first_name character varying,
+  last_name character varying,
+  address character varying,
+  tags character varying[],
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT customer_pk PRIMARY KEY (id)
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.customer
+  OWNER TO clyp;
+
+
+CREATE TABLE public.customer_audit
+(
+  action char(1),
+  id bigint,
+  username character varying,
+  mobile_no int,
+  email character varying,
+  passhash character varying,
+  first_name character varying,
+  last_name character varying,
+  address character varying,
+  tags character varying[],
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.customer_audit
+  OWNER TO clyp;
+  
+CREATE OR REPLACE FUNCTION process_customer_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO customer_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO customer_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO customer_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER customer_audit AFTER INSERT OR UPDATE OR DELETE ON customer FOR EACH ROW EXECUTE PROCEDURE process_customer_audit();  
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.session_status;
+CREATE DOMAIN session_status AS TEXT
+CHECK(
+   VALUE = 'STARTED'
+OR VALUE = 'ENDED'
+);
+ALTER DOMAIN session_status OWNER TO clyp;
+
+DROP SEQUENCE IF EXISTS public.session_id_seq;
+CREATE SEQUENCE public.session_id_seq INCREMENT 1;
+ALTER TABLE public.session_id_seq OWNER TO clyp;
+
+CREATE TABLE public.session (
+  id bigint NOT NULL DEFAULT nextval('session_id_seq'::regClass),
+  start_time TIMESTAMPTZ,
+  end_time TIMESTAMPTZ,
+  dining_table_id bigint NOT NULL,
+  status session_status,
+  tags character varying[],
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT session_pk PRIMARY KEY (id),
+  CONSTRAINT session_dining_table_fk FOREIGN KEY (dining_table_id)
+    REFERENCES dining_table (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+ ) WITH (OIDS=FALSE);
+
+ALTER TABLE public.session OWNER TO clyp;
+
+CREATE TABLE public.session_audit (
+  action char(1),
+  id bigint NOT NULL,
+  start_time TIMESTAMPTZ,
+  end_time TIMESTAMPTZ,
+  dining_table_id bigint NOT NULL,
+  status session_status,
+  tags character varying[],
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+ ) WITH (OIDS=FALSE);
+
+ALTER TABLE public.session_audit OWNER TO clyp;
+
+CREATE OR REPLACE FUNCTION process_session_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO session_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO session_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO session_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER session_audit AFTER INSERT OR UPDATE OR DELETE ON session FOR EACH ROW EXECUTE PROCEDURE process_session_audit();  
 
 ------------------------------------------------------------------------------
