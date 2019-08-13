@@ -25,6 +25,7 @@
 ------------------------------------------------------------------------------
 --Begin of Tables--
 ------------------------------------------------------------------------------
+
 DROP TABLE IF EXISTS public.business_owner_entity;  
 DROP TABLE IF EXISTS public.business_owner_entity_audit;
 
@@ -43,6 +44,15 @@ DROP TABLE IF EXISTS public.dining_table_audit;
 
 DROP TABLE IF EXISTS public.establishment_layout;  
 DROP TABLE IF EXISTS public.establishment_layout_audit;
+
+DROP TABLE IF EXISTS public.bar_menu_item;  
+DROP TABLE IF EXISTS public.bar_menu_item_audit;
+
+DROP TABLE IF EXISTS public.bar_menu;  
+DROP TABLE IF EXISTS public.bar_menu_audit;
+
+DROP TABLE IF EXISTS public.kitchen_menu_item;  
+DROP TABLE IF EXISTS public.kitchen_menu_item_audit;
 
 DROP TABLE IF EXISTS public.kitchen_menu;  
 DROP TABLE IF EXISTS public.kitchen_menu_audit;
@@ -67,17 +77,88 @@ DROP TABLE IF EXISTS public.layout_audit;
 DROP TABLE IF EXISTS public.customer;
 DROP TABLE IF EXISTS public.customer_audit;
 
+DROP TABLE IF EXISTS currency;
 ------------------------------------------------------------------------------
 
-DROP DOMAIN IF EXISTS public.menu_type;
-CREATE DOMAIN menu_type AS TEXT
+DROP DOMAIN IF EXISTS public.kitchen_menu_type;
+CREATE DOMAIN kitchen_menu_type AS TEXT
 CHECK(   
    VALUE = 'Food'
 OR VALUE = 'Beverages'
 OR VALUE = 'Vegetarian'
 OR VALUE = 'Non-Vegetarian'
 );
-ALTER DOMAIN menu_type OWNER TO clyp;
+ALTER DOMAIN kitchen_menu_type OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.kitchen_menu_item_type;
+CREATE DOMAIN kitchen_menu_item_type AS TEXT
+CHECK(   
+   VALUE = 'Chinese'
+OR VALUE = 'North Indian'
+OR VALUE = 'South Indian'
+OR VALUE = 'Chettinad'
+OR VALUE = 'Chaat'
+OR VALUE = 'Dessert'
+OR VALUE = 'Beverages'
+OR VALUE = 'Mughlai'
+);
+
+ALTER DOMAIN kitchen_menu_item_type OWNER TO clyp;
+
+------------------------------------------------------------------------------
+DROP DOMAIN IF EXISTS public.kitchen_menu_item_subtype;
+CREATE DOMAIN kitchen_menu_item_subtype AS TEXT
+CHECK(   
+   VALUE = 'Dairy Foods'
+OR VALUE = 'Protien Foods'
+OR VALUE = 'Fruits'
+OR VALUE = 'Vegetables'
+OR VALUE = 'Fruits/Vegetables'
+);
+
+ALTER DOMAIN kitchen_menu_item_subtype OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.bar_menu_type;
+CREATE DOMAIN bar_menu_type AS TEXT
+CHECK(   
+   VALUE = 'Wines'
+OR VALUE = 'Whiskies'
+OR VALUE = 'Champagne'
+OR VALUE = 'Beers'
+OR VALUE = 'Cocktails'
+);
+ALTER DOMAIN bar_menu_type OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.bar_menu_item_type;
+CREATE DOMAIN bar_menu_item_type AS TEXT
+CHECK(   
+   VALUE = 'Wines'
+OR VALUE = 'Whiskies'
+OR VALUE = 'Champagne'
+OR VALUE = 'Snacks'
+OR VALUE = 'Beers'
+OR VALUE = 'Starters'
+OR VALUE = 'Specials'
+OR VALUE = 'Entrees'
+);
+
+ALTER DOMAIN bar_menu_item_type OWNER TO clyp;
+
+------------------------------------------------------------------------------
+DROP DOMAIN IF EXISTS public.bar_menu_item_subtype;
+CREATE DOMAIN bar_menu_item_subtype AS TEXT
+CHECK(   
+   VALUE = 'Imported'
+OR VALUE = 'Domestic'
+);
+
+ALTER DOMAIN bar_menu_item_subtype OWNER TO clyp;
 
 ------------------------------------------------------------------------------
 
@@ -151,8 +232,128 @@ ALTER DOMAIN session_status OWNER TO clyp;
 
 ------------------------------------------------------------------------------
 
+CREATE TABLE currency (
+  name   character varying NOT NULL,
+  code   character(3) NOT NULL,
+  symbol character varying NOT NULL,
+  CONSTRAINT currency_pk PRIMARY KEY (code)
+);
 
-  
+INSERT INTO currency (name, code, symbol) VALUES ('Leke', 'ALL', 'Lek');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'USD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Afghanis', 'AFN', '؋');
+INSERT INTO currency (name, code, symbol) VALUES ('Pesos', 'ARS', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Guilders', 'AWG', 'ƒ');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'AUD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('New Manats', 'AZN', 'ман');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'BSD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'BBD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Rubles', 'BYR', 'p.');
+INSERT INTO currency (name, code, symbol) VALUES ('Euro', 'EUR', '€');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'BZD', 'BZ$');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'BMD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Bolivianos', 'BOB', '$b');
+INSERT INTO currency (name, code, symbol) VALUES ('Convertible Marka', 'BAM', 'KM');
+INSERT INTO currency (name, code, symbol) VALUES ('Pula', 'BWP', 'P');
+INSERT INTO currency (name, code, symbol) VALUES ('Leva', 'BGN', 'лв');
+INSERT INTO currency (name, code, symbol) VALUES ('Reais', 'BRL', 'R$');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'GBP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'BND', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Riels', 'KHR', '៛');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'CAD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'KYD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Pesos', 'CLP', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Yuan Renminbi', 'CNY', '¥');
+INSERT INTO currency (name, code, symbol) VALUES ('Pesos', 'COP', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Colón', 'CRC', '₡');
+INSERT INTO currency (name, code, symbol) VALUES ('Kuna', 'HRK', 'kn');
+INSERT INTO currency (name, code, symbol) VALUES ('Pesos', 'CUP', '₱');
+INSERT INTO currency (name, code, symbol) VALUES ('Koruny', 'CZK', 'Kč');
+INSERT INTO currency (name, code, symbol) VALUES ('Kroner', 'DKK', 'kr');
+INSERT INTO currency (name, code, symbol) VALUES ('Pesos', 'DOP ', 'RD$');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'XCD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'EGP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Colones', 'SVC', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'FKP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'FJD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Cedis', 'GHC', '¢');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'GIP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Quetzales', 'GTQ', 'Q');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'GGP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'GYD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Lempiras', 'HNL', 'L');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'HKD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Forint', 'HUF', 'Ft');
+INSERT INTO currency (name, code, symbol) VALUES ('Kronur', 'ISK', 'kr');
+INSERT INTO currency (name, code, symbol) VALUES ('Rupees', 'INR', 'Rp');
+INSERT INTO currency (name, code, symbol) VALUES ('Rupiahs', 'IDR', 'Rp');
+INSERT INTO currency (name, code, symbol) VALUES ('Rials', 'IRR', '﷼');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'IMP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('New Shekels', 'ILS', '₪');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'JMD', 'J$');
+INSERT INTO currency (name, code, symbol) VALUES ('Yen', 'JPY', '¥');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'JEP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Tenge', 'KZT', 'лв');
+INSERT INTO currency (name, code, symbol) VALUES ('Won', 'KPW', '₩');
+INSERT INTO currency (name, code, symbol) VALUES ('Won', 'KRW', '₩');
+INSERT INTO currency (name, code, symbol) VALUES ('Soms', 'KGS', 'лв');
+INSERT INTO currency (name, code, symbol) VALUES ('Kips', 'LAK', '₭');
+INSERT INTO currency (name, code, symbol) VALUES ('Lati', 'LVL', 'Ls');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'LBP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'LRD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Switzerland Francs', 'CHF', 'CHF');
+INSERT INTO currency (name, code, symbol) VALUES ('Litai', 'LTL', 'Lt');
+INSERT INTO currency (name, code, symbol) VALUES ('Denars', 'MKD', 'ден');
+INSERT INTO currency (name, code, symbol) VALUES ('Ringgits', 'MYR', 'RM');
+INSERT INTO currency (name, code, symbol) VALUES ('Rupees', 'MUR', '₨');
+INSERT INTO currency (name, code, symbol) VALUES ('Pesos', 'MXN', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Tugriks', 'MNT', '₮');
+INSERT INTO currency (name, code, symbol) VALUES ('Meticais', 'MZN', 'MT');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'NAD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Rupees', 'NPR', '₨');
+INSERT INTO currency (name, code, symbol) VALUES ('Guilders', 'ANG', 'ƒ');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'NZD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Cordobas', 'NIO', 'C$');
+INSERT INTO currency (name, code, symbol) VALUES ('Nairas', 'NGN', '₦');
+INSERT INTO currency (name, code, symbol) VALUES ('Krone', 'NOK', 'kr');
+INSERT INTO currency (name, code, symbol) VALUES ('Rials', 'OMR', '﷼');
+INSERT INTO currency (name, code, symbol) VALUES ('Rupees', 'PKR', '₨');
+INSERT INTO currency (name, code, symbol) VALUES ('Balboa', 'PAB', 'B/.');
+INSERT INTO currency (name, code, symbol) VALUES ('Guarani', 'PYG', 'Gs');
+INSERT INTO currency (name, code, symbol) VALUES ('Nuevos Soles', 'PEN', 'S/.');
+INSERT INTO currency (name, code, symbol) VALUES ('Pesos', 'PHP', 'Php');
+INSERT INTO currency (name, code, symbol) VALUES ('Zlotych', 'PLN', 'zł');
+INSERT INTO currency (name, code, symbol) VALUES ('Rials', 'QAR', '﷼');
+INSERT INTO currency (name, code, symbol) VALUES ('New Lei', 'RON', 'lei');
+INSERT INTO currency (name, code, symbol) VALUES ('Rubles', 'RUB', 'руб');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'SHP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Riyals', 'SAR', '﷼');
+INSERT INTO currency (name, code, symbol) VALUES ('Dinars', 'RSD', 'Дин.');
+INSERT INTO currency (name, code, symbol) VALUES ('Rupees', 'SCR', '₨');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'SGD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'SBD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Shillings', 'SOS', 'S');
+INSERT INTO currency (name, code, symbol) VALUES ('Rand', 'ZAR', 'R');
+INSERT INTO currency (name, code, symbol) VALUES ('Rupees', 'LKR', '₨');
+INSERT INTO currency (name, code, symbol) VALUES ('Kronor', 'SEK', 'kr');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'SRD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Pounds', 'SYP', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('New Dollars', 'TWD', 'NT$');
+INSERT INTO currency (name, code, symbol) VALUES ('Baht', 'THB', '฿');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'TTD', 'TT$');
+INSERT INTO currency (name, code, symbol) VALUES ('Lira', 'TRY', 'TL');
+INSERT INTO currency (name, code, symbol) VALUES ('Liras', 'TRL', '£');
+INSERT INTO currency (name, code, symbol) VALUES ('Dollars', 'TVD', '$');
+INSERT INTO currency (name, code, symbol) VALUES ('Hryvnia', 'UAH', '₴');
+INSERT INTO currency (name, code, symbol) VALUES ('Pesos', 'UYU', '$U');
+INSERT INTO currency (name, code, symbol) VALUES ('Sums', 'UZS', 'лв');
+INSERT INTO currency (name, code, symbol) VALUES ('Bolivares Fuertes', 'VEF', 'Bs');
+INSERT INTO currency (name, code, symbol) VALUES ('Dong', 'VND', '₫');
+INSERT INTO currency (name, code, symbol) VALUES ('Rials', 'YER', '﷼');
+INSERT INTO currency (name, code, symbol) VALUES ('Zimbabwe Dollars', 'ZWD', 'Z$');
+
+------------------------------------------------------------------------------
+
 DROP SEQUENCE IF EXISTS public.role_id_seq;
 
 CREATE SEQUENCE public.role_id_seq INCREMENT 1;
@@ -615,9 +816,7 @@ CREATE TABLE public.staff
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE public.staff
-  OWNER TO clyp;
-
+ALTER TABLE public.staff OWNER TO clyp;
 
 CREATE TABLE public.staff_audit
 (
@@ -635,8 +834,7 @@ CREATE TABLE public.staff_audit
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE public.staff_audit
-  OWNER TO clyp;
+ALTER TABLE public.staff_audit OWNER TO clyp;
   
 CREATE OR REPLACE FUNCTION process_staff_audit()
 RETURNS TRIGGER AS $$
@@ -882,7 +1080,8 @@ CREATE TABLE public.session_group (
   id bigint NOT NULL DEFAULT nextval('session_group_id_seq'::regClass),
   session_id bigint[],
   updated_at TIMESTAMPTZ,
-  updated_by bigint
+  updated_by bigint,
+  CONSTRAINT session_group_pk PRIMARY KEY (id)
   ) WITH (OIDS=FALSE);
 
 ALTER TABLE public.session_group OWNER TO clyp;
@@ -898,9 +1097,10 @@ CREATE TABLE public.kitchen_menu
   id bigint NOT NULL DEFAULT nextval('kitchen_menu_id_seq'::regClass),
   establishment_id bigint,
   name character varying,
-  type menu_type, 
+  type kitchen_menu_type, 
   updated_at TIMESTAMPTZ,
   updated_by bigint,
+  CONSTRAINT kitchen_menu_pk PRIMARY KEY (id),
   CONSTRAINT kitchen_menu_establishment_fk FOREIGN KEY (establishment_id)
       REFERENCES public.establishment (id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION
@@ -914,9 +1114,10 @@ ALTER TABLE public.kitchen_menu
 CREATE TABLE public.kitchen_menu_audit
 (
   action char(1),
+  id bigint,
   establishment_id bigint,
   name character varying,
-  type menu_type, 
+  type kitchen_menu_type, 
   updated_at TIMESTAMPTZ,
   updated_by bigint
 )
@@ -945,5 +1146,204 @@ END;
 $$ LANGUAGE plpgsql;
  
 CREATE TRIGGER kitchen_menu_audit AFTER INSERT OR UPDATE OR DELETE ON kitchen_menu FOR EACH ROW EXECUTE PROCEDURE process_kitchen_menu_audit();
+
+------------------------------------------------------------------------------
+
+DROP SEQUENCE IF EXISTS public.kitchen_menu_item_id_seq;
+CREATE SEQUENCE public.kitchen_menu_item_id_seq INCREMENT 1;
+ALTER TABLE public.kitchen_menu_item_id_seq OWNER TO clyp;
+
+CREATE TABLE public.kitchen_menu_item
+(
+  id bigint NOT NULL DEFAULT nextval('kitchen_menu_item_id_seq'::regClass),
+  menu_id bigint,
+  name character varying,
+  price float,
+  currency character(3),
+  calories int,
+  serves int,
+  spicy_rating int,
+  description character varying,
+  item_type kitchen_menu_item_type,
+  item_subtype kitchen_menu_item_subtype,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT kitchen_menu_item_pk PRIMARY KEY (id),
+  CONSTRAINT kitchen_menu_item_kitchen_menu_fk FOREIGN KEY (menu_id)
+      REFERENCES public.kitchen_menu (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT kitchen_menu_item_currency_fk FOREIGN KEY (currency)
+      REFERENCES public.currency (code) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.kitchen_menu_item OWNER TO clyp;
+  
+CREATE TABLE public.kitchen_menu_item_audit
+(
+  action char(1),
+  id bigint,
+  menu_id bigint,
+  name character varying,
+  price float,
+  currency character(3),
+  calories int,
+  serves int,
+  spicy_rating int,
+  description character varying,
+  item_type kitchen_menu_item_type,
+  item_subtype kitchen_menu_item_subtype,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.kitchen_menu_item_audit OWNER TO clyp;
+
+CREATE OR REPLACE FUNCTION process_kitchen_menu_item_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO kitchen_menu_item_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO kitchen_menu_item_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO kitchen_menu_item_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER kitchen_menu_item_audit AFTER INSERT OR UPDATE OR DELETE ON kitchen_menu_item FOR EACH ROW EXECUTE PROCEDURE process_kitchen_menu_item_audit();
+
+------------------------------------------------------------------------------
+
+DROP SEQUENCE IF EXISTS public.bar_menu_id_seq;
+CREATE SEQUENCE public.bar_menu_id_seq INCREMENT 1;
+ALTER TABLE public.bar_menu_id_seq OWNER TO clyp;
+
+CREATE TABLE public.bar_menu
+(
+  id bigint NOT NULL DEFAULT nextval('bar_menu_id_seq'::regClass),
+  establishment_id bigint,
+  name character varying,
+  type bar_menu_type, 
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT bar_menu_pk PRIMARY KEY (id),
+  CONSTRAINT bar_menu_establishment_fk FOREIGN KEY (establishment_id)
+      REFERENCES public.establishment (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.bar_menu OWNER TO clyp;
+  
+CREATE TABLE public.bar_menu_audit
+(
+  action char(1),
+  id bigint,
+  establishment_id bigint,
+  name character varying,
+  type bar_menu_type, 
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+)
+WITH (
+  OIDS=FALSE
+);
+
+ALTER TABLE public.bar_menu_audit OWNER TO clyp;
+
+CREATE OR REPLACE FUNCTION process_bar_menu_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO bar_menu_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO bar_menu_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO bar_menu_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER bar_menu_audit AFTER INSERT OR UPDATE OR DELETE ON bar_menu FOR EACH ROW EXECUTE PROCEDURE process_bar_menu_audit();
+
+------------------------------------------------------------------------------
+
+DROP SEQUENCE IF EXISTS public.bar_menu_item_id_seq;
+CREATE SEQUENCE public.bar_menu_item_id_seq INCREMENT 1;
+ALTER TABLE public.bar_menu_item_id_seq OWNER TO clyp;
+
+CREATE TABLE public.bar_menu_item
+(
+  id bigint NOT NULL DEFAULT nextval('bar_menu_item_id_seq'::regClass),
+  menu_id bigint,
+  name character varying,
+  currency character(3),
+  price character varying[],
+  description character varying,
+  item_type bar_menu_item_type,
+  item_subtype bar_menu_item_subtype,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT bar_menu_item_pk PRIMARY KEY (id),
+  CONSTRAINT bar_menu_item_bar_menu_fk FOREIGN KEY (menu_id)
+      REFERENCES public.bar_menu (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT bar_menu_item_currency_fk FOREIGN KEY (currency)
+      REFERENCES public.currency (code) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.bar_menu_item OWNER TO clyp;
+  
+CREATE TABLE public.bar_menu_item_audit
+(
+  action char(1),
+  id bigint,
+  menu_id bigint,
+  name character varying,
+  currency character(3),
+  price character varying[],
+  description character varying,
+  item_type bar_menu_item_type,
+  item_subtype bar_menu_item_subtype,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.bar_menu_item_audit OWNER TO clyp;
+
+CREATE OR REPLACE FUNCTION process_bar_menu_item_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO bar_menu_item_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO bar_menu_item_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO bar_menu_item_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER bar_menu_item_audit AFTER INSERT OR UPDATE OR DELETE ON bar_menu_item FOR EACH ROW EXECUTE PROCEDURE process_bar_menu_item_audit();
 
 ------------------------------------------------------------------------------
