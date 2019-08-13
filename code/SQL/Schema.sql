@@ -31,6 +31,10 @@ DROP TABLE IF EXISTS public.business_owner_entity_audit;
 DROP TABLE IF EXISTS public.staff;  
 DROP TABLE IF EXISTS public.staff_audit;
 
+DROP TABLE IF EXISTS public.session_customer;
+
+DROP TABLE IF EXISTS public.session_group;
+
 DROP TABLE IF EXISTS public.session;  
 DROP TABLE IF EXISTS public.session_audit;
 
@@ -40,11 +44,115 @@ DROP TABLE IF EXISTS public.dining_table_audit;
 DROP TABLE IF EXISTS public.establishment_layout;  
 DROP TABLE IF EXISTS public.establishment_layout_audit;
 
+DROP TABLE IF EXISTS public.kitchen_menu;  
+DROP TABLE IF EXISTS public.kitchen_menu_audit;
+
 DROP TABLE IF EXISTS public.establishment;  
 DROP TABLE IF EXISTS public.establishment_audit;
 
+DROP TABLE IF EXISTS public.role;
 
-DROP TABLE IF EXISTS public.role;  
+DROP TABLE IF EXISTS public.sysuser;
+DROP TABLE IF EXISTS public.sysuser_audit;
+
+DROP TABLE IF EXISTS public.business_owner;
+DROP TABLE IF EXISTS public.business_owner_audit;  
+
+DROP TABLE IF EXISTS public.entity;  
+DROP TABLE IF EXISTS public.entity_audit;
+
+DROP TABLE IF EXISTS public.layout;
+DROP TABLE IF EXISTS public.layout_audit;  
+
+DROP TABLE IF EXISTS public.customer;
+DROP TABLE IF EXISTS public.customer_audit;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.menu_type;
+CREATE DOMAIN menu_type AS TEXT
+CHECK(   
+   VALUE = 'Food'
+OR VALUE = 'Beverages'
+OR VALUE = 'Vegetarian'
+OR VALUE = 'Non-Vegetarian'
+);
+ALTER DOMAIN menu_type OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.est_type;
+CREATE DOMAIN est_type AS TEXT
+CHECK(   
+   VALUE = 'Restaurant'
+OR VALUE = 'Bar'
+OR VALUE = 'Bar-and-Grill'
+OR VALUE = 'Pub'
+OR VALUE = 'Resto pub'
+);
+ALTER DOMAIN est_type OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.attraction;
+CREATE DOMAIN attraction AS TEXT
+CHECK(   
+   VALUE = 'Rooftop'
+OR VALUE = 'Poolside'
+OR VALUE = 'Live Music'
+OR VALUE = 'Dance'
+OR VALUE = 'Smoking Zone'
+);
+ALTER DOMAIN attraction OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.cuisine;
+CREATE DOMAIN cuisine AS TEXT
+CHECK(   
+   VALUE = 'Andhra'
+OR VALUE = 'Assamese'
+OR VALUE = 'Awadhi'
+OR VALUE = 'Bengali'
+OR VALUE = 'Bihari'
+OR VALUE = 'Chinese'
+OR VALUE = 'Continental'
+OR VALUE = 'Gharwali'
+OR VALUE = 'Goan'
+OR VALUE = 'Gujarati'
+OR VALUE = 'Himachali'
+OR VALUE = 'Italian'
+OR VALUE = 'Karnataka'
+OR VALUE = 'Kashmiri'
+OR VALUE = 'Kerala'
+OR VALUE = 'Lebanese'
+OR VALUE = 'Maharashtrian'
+OR VALUE = 'Marwari'
+OR VALUE = 'Mexican'
+OR VALUE = 'Naga'
+OR VALUE = 'Nepali'
+OR VALUE = 'Punjabi'
+OR VALUE = 'Rajasthani'
+OR VALUE = 'South indian'
+OR VALUE = 'Tamil'
+OR VALUE = 'Thai'
+);
+ALTER DOMAIN cuisine OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.session_status;
+CREATE DOMAIN session_status AS TEXT
+CHECK(
+   VALUE = 'STARTED'
+OR VALUE = 'ENDED'
+);
+ALTER DOMAIN session_status OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+
+  
 DROP SEQUENCE IF EXISTS public.role_id_seq;
 
 CREATE SEQUENCE public.role_id_seq INCREMENT 1;
@@ -66,8 +174,7 @@ INSERT INTO public.role (role_name, permissions) VALUES ('Administrator', 65535)
 INSERT INTO public.role (role_name, permissions) VALUES ('Operator',7);
 
 ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS public.sysuser;
-DROP TABLE IF EXISTS public.sysuser_audit;  
+  
 DROP SEQUENCE IF EXISTS public.sysuser_id_seq;
 
 CREATE SEQUENCE public.sysuser_id_seq INCREMENT 1;
@@ -135,8 +242,6 @@ VALUES ('smmohan', 'smmohan', 'Murali', 'Mohan', 'Saginala', '501, Brindavan Hei
 
 ------------------------------------------------------------------------------
 
-DROP TABLE IF EXISTS public.business_owner;
-DROP TABLE IF EXISTS public.business_owner_audit;  
 DROP SEQUENCE IF EXISTS public.business_owner_id_seq;
 
 CREATE SEQUENCE public.business_owner_id_seq INCREMENT 1;
@@ -199,8 +304,6 @@ CREATE TRIGGER business_owner_audit AFTER INSERT OR UPDATE OR DELETE ON business
   
 ------------------------------------------------------------------------------
 
-DROP TABLE IF EXISTS public.entity;  
-DROP TABLE IF EXISTS public.entity_audit;
 DROP SEQUENCE IF EXISTS public.entity_id_seq;
 
 CREATE SEQUENCE public.entity_id_seq INCREMENT 1;
@@ -314,8 +417,6 @@ CREATE TRIGGER business_owner_entity_audit AFTER INSERT OR UPDATE OR DELETE ON b
 FOR EACH ROW EXECUTE PROCEDURE process_business_owner_entity_audit();
 
 ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS public.layout;
-DROP TABLE IF EXISTS public.layout_audit;  
 DROP SEQUENCE IF EXISTS public.layout_id_seq;
 
 CREATE SEQUENCE public.layout_id_seq INCREMENT 1;
@@ -382,6 +483,8 @@ CREATE TABLE public.establishment
   entity_id bigint,
   establishment_no int,
   address character varying,
+  location geography,
+  cuisine_types cuisine[],
   updated_at TIMESTAMPTZ,
   updated_by bigint,
   CONSTRAINT establishment_pk PRIMARY KEY (id),
@@ -628,8 +731,6 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER dining_table_audit AFTER INSERT OR UPDATE OR DELETE ON dining_table FOR EACH ROW EXECUTE PROCEDURE process_dining_table_audit();
 
 ------------------------------------------------------------------------------
-DROP TABLE IF EXISTS public.customer;
-DROP TABLE IF EXISTS public.customer_audit;
 
 DROP SEQUENCE IF EXISTS public.customer_id_seq;
 CREATE SEQUENCE public.customer_id_seq INCREMENT 1;
@@ -699,14 +800,6 @@ CREATE TRIGGER customer_audit AFTER INSERT OR UPDATE OR DELETE ON customer FOR E
 
 ------------------------------------------------------------------------------
 
-DROP DOMAIN IF EXISTS public.session_status;
-CREATE DOMAIN session_status AS TEXT
-CHECK(
-   VALUE = 'STARTED'
-OR VALUE = 'ENDED'
-);
-ALTER DOMAIN session_status OWNER TO clyp;
-
 DROP SEQUENCE IF EXISTS public.session_id_seq;
 CREATE SEQUENCE public.session_id_seq INCREMENT 1;
 ALTER TABLE public.session_id_seq OWNER TO clyp;
@@ -716,6 +809,7 @@ CREATE TABLE public.session (
   start_time TIMESTAMPTZ,
   end_time TIMESTAMPTZ,
   dining_table_id bigint NOT NULL,
+  spend_limit real,
   status session_status,
   tags character varying[],
   updated_at TIMESTAMPTZ,
@@ -734,6 +828,7 @@ CREATE TABLE public.session_audit (
   start_time TIMESTAMPTZ,
   end_time TIMESTAMPTZ,
   dining_table_id bigint NOT NULL,
+  spend_limit real,
   status session_status,
   tags character varying[],
   updated_at TIMESTAMPTZ,
@@ -760,5 +855,95 @@ END;
 $$ LANGUAGE plpgsql;
  
 CREATE TRIGGER session_audit AFTER INSERT OR UPDATE OR DELETE ON session FOR EACH ROW EXECUTE PROCEDURE process_session_audit();  
+
+------------------------------------------------------------------------------
+
+CREATE TABLE public.session_customer (
+  session_id bigint NOT NULL,
+  customer_id bigint NOT NULL,
+  is_payer boolean,
+  CONSTRAINT session_customer_customer_fk FOREIGN KEY (customer_id)
+    REFERENCES customer (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT session_customer_session_fk FOREIGN KEY (session_id)
+    REFERENCES session (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+ ) WITH (OIDS=FALSE);
+
+ALTER TABLE public.session_customer OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP SEQUENCE IF EXISTS public.session_group_id_seq;
+CREATE SEQUENCE public.session_group_id_seq INCREMENT 1;
+ALTER TABLE public.session_group_id_seq OWNER TO clyp;
+
+CREATE TABLE public.session_group (
+  id bigint NOT NULL DEFAULT nextval('session_group_id_seq'::regClass),
+  session_id bigint[],
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+  ) WITH (OIDS=FALSE);
+
+ALTER TABLE public.session_group OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP SEQUENCE IF EXISTS public.kitchen_menu_id_seq;
+CREATE SEQUENCE public.kitchen_menu_id_seq INCREMENT 1;
+ALTER TABLE public.kitchen_menu_id_seq OWNER TO clyp;
+
+CREATE TABLE public.kitchen_menu
+(
+  id bigint NOT NULL DEFAULT nextval('kitchen_menu_id_seq'::regClass),
+  establishment_id bigint,
+  name character varying,
+  type menu_type, 
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT kitchen_menu_establishment_fk FOREIGN KEY (establishment_id)
+      REFERENCES public.establishment (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+)
+WITH (
+  OIDS=FALSE
+);
+ALTER TABLE public.kitchen_menu
+  OWNER TO clyp;
+  
+CREATE TABLE public.kitchen_menu_audit
+(
+  action char(1),
+  establishment_id bigint,
+  name character varying,
+  type menu_type, 
+  updated_at TIMESTAMPTZ,
+  updated_by bigint
+)
+WITH (
+  OIDS=FALSE
+);
+
+ALTER TABLE public.kitchen_menu_audit
+  OWNER TO clyp;
+
+CREATE OR REPLACE FUNCTION process_kitchen_menu_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO kitchen_menu_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO kitchen_menu_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO kitchen_menu_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER kitchen_menu_audit AFTER INSERT OR UPDATE OR DELETE ON kitchen_menu FOR EACH ROW EXECUTE PROCEDURE process_kitchen_menu_audit();
 
 ------------------------------------------------------------------------------
