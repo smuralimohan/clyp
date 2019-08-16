@@ -51,6 +51,13 @@ DROP TABLE IF EXISTS public.invoice_audit;
 DROP TABLE IF EXISTS public.session;  
 DROP TABLE IF EXISTS public.session_audit;
 
+DROP TABLE IF EXISTS public.booking;  
+DROP TABLE IF EXISTS public.booking_audit;
+DROP TABLE IF EXISTS public.booking_history;
+
+DROP TABLE IF EXISTS public.promotion;  
+DROP TABLE IF EXISTS public.promotion_audit;
+
 DROP TABLE IF EXISTS public.staff;  
 DROP TABLE IF EXISTS public.staff_audit;
 
@@ -128,6 +135,44 @@ DROP TABLE IF EXISTS public.sysconfig_arr_audit;
 
 ------------------------------------------------------------------------------
 
+DROP DOMAIN IF EXISTS public.promotion_type;
+CREATE DOMAIN promotion_type AS TEXT
+CHECK(   
+   VALUE = 'CASHBACK'
+OR VALUE = 'DISCOUNT'
+OR VALUE = 'CHANGES TO MENU'
+OR VALUE = 'NEW BRANCH' 
+);
+ALTER DOMAIN promotion_type OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.promotion_frequency;
+CREATE DOMAIN promotion_frequency AS TEXT
+CHECK(   
+   VALUE = 'DAILY'
+OR VALUE = 'WEEKLY'
+OR VALUE = 'MONTHLY'
+OR VALUE = 'QUARTERLY'
+OR VALUE = 'HALF_YEARLY'
+OR VALUE = 'YEARLY' 
+);
+ALTER DOMAIN promotion_frequency OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
+DROP DOMAIN IF EXISTS public.booking_status;
+CREATE DOMAIN booking_status AS TEXT
+CHECK(   
+   VALUE = 'WAITLIST'
+OR VALUE = 'CANCELLED'
+OR VALUE = 'BOOKED'
+OR VALUE = 'COMPLETED' 
+);
+ALTER DOMAIN booking_status OWNER TO clyp;
+
+------------------------------------------------------------------------------
+
 DROP DOMAIN IF EXISTS public.sharing_type;
 CREATE DOMAIN sharing_type AS TEXT
 CHECK(   
@@ -137,6 +182,8 @@ OR VALUE = 'WORLD'
 );
 ALTER DOMAIN sharing_type OWNER TO clyp;
 
+------------------------------------------------------------------------------
+
 DROP DOMAIN IF EXISTS public.customer_fun_foodie_type;
 CREATE DOMAIN customer_fun_foodie_type AS TEXT
 CHECK(   
@@ -145,6 +192,8 @@ OR VALUE = 'Die for Dosa'
 OR VALUE = 'Chaat Chaat ke Chaat' 
 );
 ALTER DOMAIN customer_fun_foodie_type OWNER TO clyp;
+
+------------------------------------------------------------------------------
 
 DROP DOMAIN IF EXISTS public.discount_type;
 CREATE DOMAIN discount_type AS TEXT
@@ -806,6 +855,8 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER sysconfig_audit AFTER INSERT OR UPDATE OR DELETE ON sysconfig FOR EACH ROW EXECUTE PROCEDURE process_sysconfig_audit();
 
 INSERT INTO sysconfig (name, int_value) VALUES('PHOTO_LIMIT_NO', 5);
+INSERT INTO sysconfig (name, int_value) VALUES('BOOKING_WAIT_TIME_SECONDS', 900);
+INSERT INTO sysconfig (name, int_value) VALUES('BOOKING_DURATION_HOURS', 1);
 INSERT INTO sysconfig (name, bool_value) VALUES('CAN_BOOK_ALL_TABLES', TRUE);
 
 ------------------------------------------------------------------------------
@@ -1621,12 +1672,95 @@ CREATE TRIGGER customer_audit AFTER INSERT OR UPDATE OR DELETE ON customer FOR E
 
 ------------------------------------------------------------------------------
 
+DROP SEQUENCE IF EXISTS public.booking_id_seq;
+CREATE SEQUENCE public.booking_id_seq INCREMENT 1;
+ALTER TABLE public.booking_id_seq OWNER TO clyp;
+
+CREATE TABLE public.booking
+(
+  id bigint NOT NULL DEFAULT nextval('booking_id_seq'::regClass),
+  customer_id bigint,
+  dining_table_id bigint,
+  actual_dining_table_id bigint,
+  booking_date date,
+  booking_time time,
+  booking_duration smallint,
+  spend_limit real,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT booking_pk PRIMARY KEY (id),
+  CONSTRAINT booking_customer_fk FOREIGN KEY (customer_id)
+      REFERENCES public.customer (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION    
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.booking OWNER TO clyp;
+ 
+CREATE TABLE public.booking_audit
+(
+  action char(1),
+  id bigint,
+  customer_id bigint,
+  dining_table_id bigint,
+  actual_dining_table_id bigint,
+  booking_date date,
+  booking_time time,
+  booking_duration smallint,
+  spend_limit real,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint    
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.booking_audit OWNER TO clyp;
+
+
+CREATE OR REPLACE FUNCTION process_booking_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO booking_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO booking_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO booking_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER booking_audit AFTER INSERT OR UPDATE OR DELETE ON booking FOR EACH ROW EXECUTE PROCEDURE process_booking_audit();
+
+CREATE TABLE public.booking_history
+(
+  id bigint,
+  customer_id bigint,
+  dining_table_id bigint,
+  actual_dining_table_id bigint,
+  booking_date date,
+  booking_time time,
+  booking_duration smallint,
+  spend_limit real,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint    
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.booking_audit OWNER TO postgres;
+
+------------------------------------------------------------------------------
+
 DROP SEQUENCE IF EXISTS public.session_id_seq;
 CREATE SEQUENCE public.session_id_seq INCREMENT 1;
 ALTER TABLE public.session_id_seq OWNER TO clyp;
 
 CREATE TABLE public.session (
   id bigint NOT NULL DEFAULT nextval('session_id_seq'::regClass),
+  booking_id bigint,
   start_time TIMESTAMPTZ,
   end_time TIMESTAMPTZ,
   dining_table_id bigint NOT NULL,
@@ -1640,8 +1774,11 @@ CREATE TABLE public.session (
   CONSTRAINT session_dining_table_fk FOREIGN KEY (dining_table_id)
     REFERENCES dining_table (id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION,
-   CONSTRAINT session_staff_fk FOREIGN KEY (staff_id)
+  CONSTRAINT session_staff_fk FOREIGN KEY (staff_id)
     REFERENCES staff (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT session_booking_fk FOREIGN KEY (booking_id)
+    REFERENCES booking (id) MATCH SIMPLE
       ON UPDATE NO ACTION ON DELETE NO ACTION   
  ) WITH (OIDS=FALSE);
 
@@ -1650,6 +1787,7 @@ ALTER TABLE public.session OWNER TO clyp;
 CREATE TABLE public.session_audit (
   action char(1),
   id bigint NOT NULL,
+  booking_id bigint,
   start_time TIMESTAMPTZ,
   end_time TIMESTAMPTZ,
   dining_table_id bigint NOT NULL,
@@ -2603,3 +2741,73 @@ CREATE TRIGGER review_audit AFTER INSERT OR UPDATE OR DELETE ON review FOR EACH 
 
 ------------------------------------------------------------------------------
 
+DROP SEQUENCE IF EXISTS public.promotion_id_seq;
+CREATE SEQUENCE public.promotion_id_seq INCREMENT 1;
+ALTER TABLE public.promotion_id_seq OWNER TO clyp;
+
+CREATE TABLE public.promotion
+(
+  id bigint NOT NULL DEFAULT nextval('promotion_id_seq'::regClass),
+  entity_id bigint NOT NULL,
+  staff_id bigint,
+  message character varying,
+  image bytea,
+  start_datetime TIMESTAMP,
+  end_datetime TIMESTAMP,
+  is_active boolean,
+  type promotion_type,
+  frequency promotion_frequency,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint,
+  CONSTRAINT promotion_pk PRIMARY KEY (id),
+  CONSTRAINT promotion_entity_fk FOREIGN KEY (entity_id)
+      REFERENCES public.entity (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+  CONSTRAINT promotion_staff_fk FOREIGN KEY (staff_id)
+      REFERENCES public.staff (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION            
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.promotion OWNER TO clyp;
+ 
+CREATE TABLE public.promotion_audit
+(
+  action char(1),
+  id bigint,
+  entity_id bigint NOT NULL,
+  staff_id bigint,
+  message character varying,
+  image bytea,
+  start_datetime TIMESTAMP,
+  end_datetime TIMESTAMP,
+  is_active boolean,
+  type promotion_type,
+  frequency promotion_frequency,
+  updated_at TIMESTAMPTZ,
+  updated_by bigint    
+)
+WITH ( OIDS=FALSE );
+
+ALTER TABLE public.promotion_audit OWNER TO clyp;
+
+CREATE OR REPLACE FUNCTION process_promotion_audit()
+RETURNS TRIGGER AS $$
+BEGIN
+   IF (TG_OP = 'DELETE') THEN
+      INSERT INTO promotion_audit SELECT 'D', OLD.*;
+      RETURN OLD;
+   ELSIF (TG_OP = 'UPDATE') THEN
+      INSERT INTO promotion_audit SELECT 'U', NEW.*;
+      RETURN NEW;
+   ELSIF (TG_OP = 'INSERT') THEN
+      INSERT INTO promotion_audit SELECT 'I', NEW.*;
+      RETURN NEW;
+   END IF;
+RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CREATE TRIGGER promotion_audit AFTER INSERT OR UPDATE OR DELETE ON promotion FOR EACH ROW EXECUTE PROCEDURE process_promotion_audit();
+
+------------------------------------------------------------------------------
