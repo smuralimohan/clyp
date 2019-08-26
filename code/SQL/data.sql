@@ -1139,7 +1139,8 @@ CREATE TABLE public.business_owner_entity_audit
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE public.business_owner_entity_audit OWNER TO clyp; 
+ALTER TABLE public.business_owner_entity
+  OWNER TO clyp; 
 
 CREATE OR REPLACE FUNCTION process_business_owner_entity_audit()
 RETURNS TRIGGER AS $$
@@ -1733,7 +1734,7 @@ $$ LANGUAGE plpgsql;
  
 CREATE TRIGGER booking_audit AFTER INSERT OR UPDATE OR DELETE ON booking FOR EACH ROW EXECUTE PROCEDURE process_booking_audit();
 
-CREATE TABLE public.booking_history -- Change this to view.
+CREATE TABLE public.booking_history
 (
   id bigint,
   customer_id bigint,
@@ -1748,7 +1749,7 @@ CREATE TABLE public.booking_history -- Change this to view.
 )
 WITH ( OIDS=FALSE );
 
-ALTER TABLE public.booking_history OWNER TO postgres;
+ALTER TABLE public.booking_audit OWNER TO postgres;
 
 ------------------------------------------------------------------------------
 
